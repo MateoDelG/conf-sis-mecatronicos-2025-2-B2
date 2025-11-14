@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <!-- meta viewport hace que la página sea "responsive" en celulares -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ESP32 - WiFi Basics</title>
+
+  <!-- ==================== CSS ====================
+       Estilos MUY simples para que la interfaz sea legible y limpia.
+       Podrías usar frameworks (Bootstrap, Tailwind), pero aquí
+       preferimos "vanilla CSS" para explicar lo mínimo necesario. -->
+  <style>
+    :root { --radius: 12px; }
+    body{
+      font-family: system-ui, Segoe UI, Arial, sans-serif;
+      margin: 18px; max-width: 680px;
+    }
+    h1{ font-size: 1.2rem; margin: 0 0 12px; }
+    .card{
+      border: 1px solid #ddd; border-radius: var(--radius);
+      padding: 12px; margin: 12px 0;
+    }
+    .row{ display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+    button{
+      padding: 10px 12px; cursor: pointer;
+      border-radius: var(--radius); border: 1px solid #ccc; background: #fff;
+    }
+    #status{
+      background: #f8f8f8; padding: 10px; border-radius: var(--radius);
+      white-space: pre-wrap;  /* Para ver saltos de línea si los hubiera */
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    code{ background: #f3f3f3; padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>ESP32 – WiFi + Servidor Web + LEDs + Estado</h1>
+
+  <!-- ==================== BLOQUE: CONTROL DE LEDS ====================
+       Cada par de botones llama a la función JS led(n, v),
+       que hace una petición HTTP GET a /led?n=...&v=...
+         - n: número de LED (1..4)
+         - v: valor (1 = encender, 0 = apagar)
+       En el ESP32, la ruta /led se atiende en 'handleLed()' (ver C++) -->
+  <div class="card">
+    <b>Control de LEDs</b>
+    <div class="row">
+      <button onclick="led(1,1)">LED1 ON</button>
+      <button onclick="led(1,0)">LED1 OFF</button>
+    </div>
+    <div class="row">
+      <button onclick="led(2,1)">LED2 ON</button>
+      <button onclick="led(2,0)">LED2 OFF</button>
+    </div>
+    <div class="row">
+      <button onclick="led(3,1)">LED3 ON</button>
+      <button onclick="led(3,0)">LED3 OFF</button>
+    </div>
+    <div class="row">
+      <button onclick="led(4,1)">LED4 ON</button>
+      <button onclick="led(4,0)">LED4 OFF</button>
+    </div>
+    <small>También puedes probar manualmente en la barra de direcciones:
+      <code>/led?n=1&v=1</code> (enciende LED1)</small>
+  </div>
+
+  <!-- ==================== BLOQUE: ESTADO EN VIVO ====================
+       La idea: pedir al ESP32 (cada 1 s) un "resumen" de estado por HTTP.
+       - JS hace fetch('/status') y coloca el texto recibido en el <div id="status">
+       - En C++, 'handleStatus()' construye el mensaje (IP, RSSI, tiempo activo, etc.)
+       Esto simula "telemetría sencilla" para que los estudiantes vean que el
+       navegador puede LEER datos del dispositivo (no solo enviar comandos). -->
+  <div class="card">
+    <b>Estado del ESP32</b>
+    <div id="status">Cargando...</div>
+  </div>
+
+  <!-- ==================== JAVASCRIPT ====================
+       - 'fetch' es la API moderna del navegador para hacer solicitudes HTTP.
+       - Usamos 'async/await' para escribir código asíncrono de forma clara. -->
+  <script>
+    // Enciende/Apaga un LED llamando al endpoint /led?n=...&v=...
+    async function led(n, v) {
+      try {
+        // Construimos la URL con 'query params' n y v.
+        // OJO: GET no lleva cuerpo; todo va en la URL.
+        await fetch(`/led?n=${n}&v=${v}`);
+        // Podríamos mostrar un aviso al usuario o actualizar una etiqueta.
+      } catch (err) {
+        console.log("Error al cambiar LED:", err);
+      }
+    }
+
+    // Pide al ESP32 un texto de estado y lo muestra en el <div id="status">
+    async function refreshStatus() {
+      try {
+        const resp = await fetch('/status');  // GET a /status
+        const txt  = await resp.text();       // decodifica la respuesta como texto plano
+        document.getElementById('status').textContent = txt;
+      } catch (err) {
+        document.getElementById('status').textContent = "Sin conexión con el ESP32";
+      }
+    }
+
+    // Llamamos una vez al inicio...
+    refreshStatus();
+    // ...y luego cada 1000 ms para tener un "casi tiempo real" simple
+    setInterval(refreshStatus, 1000);
+  </script>
+</body>
+</html>
